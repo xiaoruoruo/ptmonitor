@@ -2,10 +2,16 @@ import sys
 import os
 import re
 import datetime
+import ConfigParser
 
 import mechanize
 from BeautifulSoup import BeautifulSoup
 from pymongo import Connection
+
+config = ConfigParser.RawConfigParser()
+config.read('config')
+username = config.get('auth','username')
+password = config.get('auth','password')
 
 cookies = mechanize.LWPCookieJar(filename='cookie.txt')
 br = mechanize.Browser()
@@ -39,8 +45,8 @@ def login():
     print 'entered',code
 
     br.select_form(nr=0)
-    br['username'] = os.environ['USERNAME']
-    br['password'] = os.environ['PASSWORD']
+    br['username'] = username
+    br['password'] = password
     br['checkcode'] = code
     res2 = br.submit()
 #    print br.geturl()
