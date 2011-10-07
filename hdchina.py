@@ -3,6 +3,7 @@ import sys
 import re
 import datetime
 import itertools
+import random
 import ConfigParser
 
 import mechanize
@@ -52,7 +53,7 @@ def parse_tr(tr):
     obj['ncomments'] = int(tds[3].text)
     obj['addtime'] = tds[4].text
     obj['size'] = tds[6].text
-    obj['ncomplete'] = int(tds[7].text[:-1])
+    obj['ncomplete'] = int(tds[7].text[:-1].replace(',',''))
     obj['nupload'], obj['ndownload'] = [int(x.text) for x in tds[8:10]]
     obj['username'] = tds[10].text
     try:
@@ -94,6 +95,7 @@ if __name__ == '__main__':
     cookies.load()
     if 'login' in sys.argv:
         login(br, cookies)
+        sys.exit(0)
 
     cnt = 0
     for i in range(6):

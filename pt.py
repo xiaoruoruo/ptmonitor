@@ -60,7 +60,7 @@ def parse_tr(tr):
     else:
         obj['sticky'] = False
     obj['title'] = tds[1].find('tr').find('a').text
-    obj['id'] = int(re_id.search(tds[1].find('tr').find('a')['href']).group(1))
+    obj['id'] = int(re_id.search(tds[1].find('tr').find('a',{'href':True})['href']).group(1))
     obj['ncomments'] = int(tds[4].text)
     obj['uptime'] = tds[5].text
     obj['size'] = tds[6].text
@@ -102,6 +102,7 @@ if __name__ == '__main__':
     cookies.load()
     if 'login' in sys.argv:
         login(br, cookies)
+        sys.exit(0)
 
     cnt = 0
     for i in range(6):
