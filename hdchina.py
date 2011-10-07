@@ -91,9 +91,8 @@ if __name__ == '__main__':
     mongo_db = mongo_conn.ptmonitor
     mongo_col = mongo_db.hdchina
 
-    try:
-        cookies.load()
-    except:
+    cookies.load()
+    if 'login' in sys.argv:
         login(br, cookies)
 
     cnt = 0
