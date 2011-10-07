@@ -1,5 +1,4 @@
 import sys
-import os
 import re
 import datetime
 import ConfigParser
@@ -8,22 +7,12 @@ import mechanize
 from BeautifulSoup import BeautifulSoup
 from pymongo import Connection
 
-config = ConfigParser.RawConfigParser()
-config.read('config')
-username = config.get('auth','username')
-password = config.get('auth','password')
-
-cookies = mechanize.LWPCookieJar(filename='cookie.txt')
-br = mechanize.Browser()
-br.set_handle_robots(False)
-br.set_cookiejar(cookies)
-re_id = re.compile(r'id=(\d+)')
-
-mongo_conn = Connection()
-mongo_db = mongo_conn.ptmonitor
-mongo_col = mongo_db.pt
-
 def login():
+    config = ConfigParser.RawConfigParser()
+    config.read('config')
+    username = config.get('auth','username')
+    password = config.get('auth','password')
+
     res = br.open('http://pt.sjtu.edu.cn')
     print br.geturl()
     soup = BeautifulSoup(res.get_data())
@@ -55,22 +44,6 @@ def login():
 
     cookies.save()
 
-try:
-    cookies.load()
-except:
-    login()
-
-res = br.open('https://pt.sjtu.edu.cn/torrents.php')
-if br.geturl() != 'https://pt.sjtu.edu.cn/torrents.php':
-    print 'wrong torrent page, maybe corupted cookie', br.geturl()
-    sys.exit(1)
-# for debug
-with open('torrents.html','wb') as f:
-    f.write(res.get_data())
-soup = BeautifulSoup(res.get_data())
-table = soup.find('table', {'class':'torrents'})
-trs = table.findAll('tr',recursive=False)
-
 def parse_tr(tr):
     obj = {}
     try:
@@ -96,11 +69,38 @@ def parse_tr(tr):
         obj['userid'] = None
     return obj
 
-for tr in trs[1:]:
+if __name__ == '__main__':
+    cookies = mechanize.LWPCookieJar(filename='cookie.txt')
+    br = mechanize.Browser()
+    br.set_handle_robots(False)
+    br.set_cookiejar(cookies)
+    re_id = re.compile(r'id=(\d+)')
+
+    mongo_conn = Connection()
+    mongo_db = mongo_conn.ptmonitor
+    mongo_col = mongo_db.pt
+
     try:
-        obj = parse_tr(tr)
-        obj['date'] = datetime.datetime.utcnow()
+        cookies.load()
     except:
-        print 'error parsing', tr
-    mongo_col.insert(obj)
+        login()
+
+    res = br.open('https://pt.sjtu.edu.cn/torrents.php')
+    if br.geturl() != 'https://pt.sjtu.edu.cn/torrents.php':
+        print 'wrong torrent page, maybe corupted cookie', br.geturl()
+        sys.exit(1)
+    # for debug
+    with open('torrents.html','wb') as f:
+        f.write(res.get_data())
+    soup = BeautifulSoup(res.get_data())
+    table = soup.find('table', {'class':'torrents'})
+    trs = table.findAll('tr',recursive=False)
+
+    for tr in trs[1:]:
+        try:
+            obj = parse_tr(tr)
+            obj['date'] = datetime.datetime.utcnow()
+        except:
+            print 'error parsing', tr
+        mongo_col.insert(obj)
 
