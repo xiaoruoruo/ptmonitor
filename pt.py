@@ -1,3 +1,4 @@
+# encoding: utf8
 import sys
 import re
 import datetime
@@ -62,7 +63,7 @@ def parse_tr(tr):
     obj['ncomments'] = int(tds[4].text)
     obj['uptime'] = tds[5].text
     obj['size'] = tds[6].text
-    obj['nupload'], obj['ndownload'], obj['ncomplete'] = [int(x.text) for x in tds[7:10]]
+    obj['nupload'], obj['ndownload'], obj['ncomplete'] = [int(x.text.replace(',','')) for x in tds[7:10]]
     obj['username'] = tds[10].text
     try:
         obj['userid'] = int(re_id.search(tds[10].find('a')['href']).group(1))
@@ -109,7 +110,7 @@ if __name__ == '__main__':
             res = br.follow_link(text=u'随便看看'.encode('utf8'))
         else:
             res = br.follow_link(text=u'下一页\xa0>>'.encode('utf8'))
-        if br.geturl().startswith('https://pt.sjtu.edu.cn/torrents.php'):
+        if not br.geturl().startswith('https://pt.sjtu.edu.cn/torrents.php'):
             print 'wrong torrent page, maybe corupted cookie', br.geturl()
             sys.exit(1)
         for obj in parse_page(res):
