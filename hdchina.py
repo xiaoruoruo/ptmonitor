@@ -2,6 +2,7 @@
 import sys
 import re
 import datetime
+import itertools
 import ConfigParser
 
 import mechanize
@@ -11,33 +12,16 @@ from pymongo import Connection
 def login(br, cookies):
     config = ConfigParser.RawConfigParser()
     config.read('config')
-    username = config.get('pt','username')
-    password = config.get('pt','password')
+    username = config.get('hdchina','username')
+    password = config.get('hdchina','password')
 
-    res = br.open('http://pt.sjtu.edu.cn')
+    res = br.open('http://hdchina.org/login.php')
     print br.geturl()
     soup = BeautifulSoup(res.get_data())
-    img_src = None
-    for img in soup.findAll('img'):
-        if img['src'].startswith('getcheckcode'):
-            img_src = img['src']
-    if not img_src:
-        sys.exit(1)
-    print img_src
-    image_response = br.open_novisit(img_src)
-    image = image_response.read()
-    with open('checkcode.png','wb') as f:
-        f.write(image)
-
-    print 'Enter checkcode: ',
-    code = sys.stdin.readline()
-
-    print 'entered',code
 
     br.select_form(nr=0)
     br['username'] = username
     br['password'] = password
-    br['checkcode'] = code
     res2 = br.submit()
 #    print br.geturl()
 #    soup = BeautifulSoup(res2.get_data())
@@ -47,24 +31,29 @@ def login(br, cookies):
     return res2
 
 re_id = re.compile(r'id=(\d+)')
+re_promote = re.compile(r'/pic/ico_(\w+)\.gif')
 def parse_tr(tr):
     obj = {}
-    try:
-        obj['promote'] = tr['class']
-    except:
-        obj['promote'] = None
     tds = tr.findAll('td')
-    obj['category'] = tds[0].find('a')['title']
-    if tds[1].find('img',{'alt':'Sticky'}):
+    obj['category'] = tds[0].a.img['alt']
+    if tr.find(text=u'置顶'):
         obj['sticky'] = True
     else:
         obj['sticky'] = False
-    obj['title'] = tds[1].find('tr').find('a').text
-    obj['id'] = int(re_id.search(tds[1].find('tr').find('a')['href']).group(1))
-    obj['ncomments'] = int(tds[4].text)
-    obj['uptime'] = tds[5].text
+    obj['title'] = tds[1].find('b').findAll(text=True)[-1]
+    if obj['title'].startswith(u'：'):
+        obj['title'] = obj['title'][1:]
+    try:
+        obj['promote'] = re_promote.search(tds[1].find('a').find('img')['src']).group(1)
+    except:
+        obj['promote'] = None
+    obj['id'] = int(re_id.search(tds[1].find('a')['href']).group(1))
+    obj['nfiles'] = int(tds[2].text)
+    obj['ncomments'] = int(tds[3].text)
+    obj['addtime'] = tds[4].text
     obj['size'] = tds[6].text
-    obj['nupload'], obj['ndownload'], obj['ncomplete'] = [int(x.text.replace(',','')) for x in tds[7:10]]
+    obj['ncomplete'] = int(tds[7].text[:-1])
+    obj['nupload'], obj['ndownload'] = [int(x.text) for x in tds[8:10]]
     obj['username'] = tds[10].text
     try:
         obj['userid'] = int(re_id.search(tds[10].find('a')['href']).group(1))
@@ -75,10 +64,13 @@ def parse_tr(tr):
 def parse_page(res):
     now = datetime.datetime.utcnow()
     # for debug
-    with open('torrents.html','wb') as f:
+    with open('hdchina.html','wb') as f:
         f.write(res.get_data())
     soup = BeautifulSoup(res.get_data())
-    table = soup.find('table', {'class':'torrents'})
+
+    pagecnt = int(re.search(r'page=(\d+)', list(itertools.takewhile(lambda x: x['href'].startswith('browse.php?page='), soup.find(text=u'1&nbsp;-&nbsp;100').findAllNext('a')))[-1]['href']).group(1))
+
+    table = soup.find('table',{'width':'90%'})
     trs = table.findAll('tr',recursive=False)
 
     for tr in trs[1:]:
@@ -97,7 +89,7 @@ if __name__ == '__main__':
 
     mongo_conn = Connection()
     mongo_db = mongo_conn.ptmonitor
-    mongo_col = mongo_db.pt
+    mongo_col = mongo_db.hdchina
 
     try:
         cookies.load()
@@ -107,12 +99,14 @@ if __name__ == '__main__':
     cnt = 0
     for i in range(6):
         if i == 0:
-            res = br.open('https://pt.sjtu.edu.cn/torrents.php')
+            res = br.open('https://hdchina.org/browse.php')
+            pagecnt = None
         elif i == 5:
-            res = br.follow_link(text=u'随便看看'.encode('utf8'))
+            page = random.randint(5, pagecnt)
+            res = br.open('https://hdchina.org/browse.php?page=%d' % page)
         else:
-            res = br.follow_link(text=u'下一页\xa0>>'.encode('utf8'))
-        if not br.geturl().startswith('https://pt.sjtu.edu.cn/torrents.php'):
+            res = br.follow_link(text=u'下页\xa0>>'.encode('utf8'))
+        if not br.geturl().startswith('https://hdchina.org/browse.php'):
             print 'wrong torrent page, maybe corupted cookie', br.geturl()
             sys.exit(1)
         for obj in parse_page(res):
