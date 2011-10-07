@@ -54,7 +54,7 @@ def parse_tr(tr):
     obj['addtime'] = tds[4].text
     obj['size'] = tds[6].text
     obj['ncomplete'] = int(tds[7].text[:-1].replace(',',''))
-    obj['nupload'], obj['ndownload'] = [int(x.text) for x in tds[8:10]]
+    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[8:10]]
     obj['username'] = tds[10].text
     try:
         obj['userid'] = int(re_id.search(tds[10].find('a')['href']).group(1))
@@ -62,6 +62,7 @@ def parse_tr(tr):
         obj['userid'] = None
     return obj
 
+pagecnt = None
 def parse_page(res):
     now = datetime.datetime.utcnow()
     # for debug
@@ -101,7 +102,6 @@ if __name__ == '__main__':
     for i in range(6):
         if i == 0:
             res = br.open('https://hdchina.org/browse.php')
-            pagecnt = None
         elif i == 5:
             page = random.randint(5, pagecnt)
             res = br.open('https://hdchina.org/browse.php?page=%d' % page)
