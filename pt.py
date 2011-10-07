@@ -44,6 +44,7 @@ def login():
 
     cookies.save()
 
+re_id = re.compile(r'id=(\d+)')
 def parse_tr(tr):
     obj = {}
     try:
@@ -69,26 +70,7 @@ def parse_tr(tr):
         obj['userid'] = None
     return obj
 
-if __name__ == '__main__':
-    cookies = mechanize.LWPCookieJar(filename='cookie.txt')
-    br = mechanize.Browser()
-    br.set_handle_robots(False)
-    br.set_cookiejar(cookies)
-    re_id = re.compile(r'id=(\d+)')
-
-    mongo_conn = Connection()
-    mongo_db = mongo_conn.ptmonitor
-    mongo_col = mongo_db.pt
-
-    try:
-        cookies.load()
-    except:
-        login()
-
-    res = br.open('https://pt.sjtu.edu.cn/torrents.php')
-    if br.geturl() != 'https://pt.sjtu.edu.cn/torrents.php':
-        print 'wrong torrent page, maybe corupted cookie', br.geturl()
-        sys.exit(1)
+def parse_page(res):
     # for debug
     with open('torrents.html','wb') as f:
         f.write(res.get_data())
@@ -100,7 +82,37 @@ if __name__ == '__main__':
         try:
             obj = parse_tr(tr)
             obj['date'] = datetime.datetime.utcnow()
+            yield obj
         except:
             print 'error parsing', tr
-        mongo_col.insert(obj)
 
+if __name__ == '__main__':
+    cookies = mechanize.LWPCookieJar(filename='cookie.txt')
+    br = mechanize.Browser()
+    br.set_handle_robots(False)
+    br.set_cookiejar(cookies)
+
+    mongo_conn = Connection()
+    mongo_db = mongo_conn.ptmonitor
+    mongo_col = mongo_db.pt
+
+    try:
+        cookies.load()
+    except:
+        login()
+
+    cnt = 0
+    for i in range(6):
+        if i == 0:
+            res = br.open('https://pt.sjtu.edu.cn/torrents.php')
+        elif i == 5:
+            res = br.follow_link(text=u'随便看看'.encode('utf8'))
+        else:
+            res = br.follow_link(text=u'下一页\xa0>>'.encode('utf8'))
+        if br.geturl().startswith('https://pt.sjtu.edu.cn/torrents.php'):
+            print 'wrong torrent page, maybe corupted cookie', br.geturl()
+            sys.exit(1)
+        for obj in parse_page(res):
+            mongo_col.insert(obj)
+            cnt += 1
+    print "Successful: ", cnt, "objects stored"
