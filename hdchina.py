@@ -66,14 +66,16 @@ def parse_tr(tr):
     return obj
 
 pagecnt = None
-def parse_page(res):
+re_pagenum = re.compile(r'page=(\d+)')
+def parse_page(page):
     now = datetime.datetime.utcnow()
     # for debug
     with open('hdchina.html','wb') as f:
-        f.write(res.get_data())
-    soup = BeautifulSoup(res.get_data())
+        f.write(page)
+    soup = BeautifulSoup(page)
 
-    pagecnt = int(re.search(r'page=(\d+)', list(itertools.takewhile(lambda x: x['href'].startswith('browse.php?page='), soup.find(text=u'1&nbsp;-&nbsp;100').findAllNext('a')))[-1]['href']).group(1))
+    global pagecnt
+    pagecnt = max(int(re_pagenum.search(x['href']).group(1)) for x in soup.find(text=u'1&nbsp;-&nbsp;100').findAllNext('a') if x['href'].startswith('browse.php?page='))
 
     table = soup.find('table',{'width':'90%'})
     trs = table.findAll('tr',recursive=False)
@@ -113,7 +115,7 @@ if __name__ == '__main__':
         if not br.geturl().startswith('https://hdchina.org/browse.php'):
             print 'wrong torrent page, maybe corupted cookie', br.geturl()
             sys.exit(1)
-        for obj in parse_page(res):
+        for obj in parse_page(res.get_data()):
             mongo_col.insert(obj)
             cnt += 1
     print "Successful: ", cnt, "objects stored"
