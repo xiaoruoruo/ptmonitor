@@ -41,7 +41,10 @@ def parse_tr(tr):
         obj['sticky'] = True
     else:
         obj['sticky'] = False
-    obj['title'] = tds[1].find('b').findAll(text=True)[-1]
+    try:
+        obj['title'] = tds[1].find('b').findAll(text=True)[-1]
+    except:
+        obj['title'] = tds[1].text.replace('&nbsp;','')
     if obj['title'].startswith(u'：'):
         obj['title'] = obj['title'][1:]
     try:
