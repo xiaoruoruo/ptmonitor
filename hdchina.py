@@ -48,7 +48,7 @@ def parse_tr(tr):
     if obj['title'].startswith(u'：'):
         obj['title'] = obj['title'][1:]
     try:
-        obj['promote'] = tr['style']=='background:#CCF;'
+        obj['promote'] = re_promote.search(tds[1].find('a').find('img')['src']).group(1)
     except:
         obj['promote'] = None
     obj['id'] = int(re_id.search(tds[1].find('a')['href']).group(1))
