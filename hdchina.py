@@ -35,32 +35,34 @@ re_id = re.compile(r'id=(\d+)')
 re_promote = re.compile(r'/pic/ico_(\w+)\.gif')
 def parse_tr(tr):
     obj = {}
-    tds = tr.findAll('td')
-    obj['category'] = tds[0].a.img['alt']
-    if tr.find(text=u'置顶'):
+    tds = tr.findAll('td', recursive=False)
+    obj['category'] = tds[0].find('img')['alt']
+    if tr.find('img', {'src':'images/pin.png'}):
         obj['sticky'] = True
     else:
         obj['sticky'] = False
     try:
-        obj['title'] = tds[1].find('b').findAll(text=True)[-1]
+        obj['title'] = tds[1].find('b').text.replace('&nbsp;','')
     except:
         obj['title'] = tds[1].text.replace('&nbsp;','')
     if obj['title'].startswith(u'：'):
         obj['title'] = obj['title'][1:]
     try:
-        obj['promote'] = re_promote.search(tds[1].find('a').find('img')['src']).group(1)
+        obj['promote'] = tr['style']=='background:#CCF;'
     except:
         obj['promote'] = None
     obj['id'] = int(re_id.search(tds[1].find('a')['href']).group(1))
     obj['nfiles'] = int(tds[2].text)
-    obj['ncomments'] = int(tds[3].text)
-    obj['addtime'] = tds[4].text
-    obj['size'] = tds[6].text
-    obj['ncomplete'] = int(tds[7].text[:-1].replace(',',''))
-    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[8:10]]
-    obj['username'] = tds[10].text
+    #obj['ncomments'] = int(tds[3].text)
+    s = tds[3].text
+    s = s[:s.find('TTL')]
+    obj['addtime'] = s
+    obj['size'] = tds[4].text
+    obj['ncomplete'] = int(tds[5].text[:-1].replace(',',''))
+    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[6].findAll('a')]
+    obj['username'] = tds[7].text
     try:
-        obj['userid'] = int(re_id.search(tds[10].find('a')['href']).group(1))
+        obj['userid'] = int(re_id.search(tds[7].find('a')['href']).group(1))
     except:
         obj['userid'] = None
     return obj
@@ -77,7 +79,7 @@ def parse_page(page):
     global pagecnt
     pagecnt = max(int(re_pagenum.search(x['href']).group(1)) for x in soup.find(text=u'1&nbsp;-&nbsp;100').findAllNext('a') if x['href'].startswith('browse.php?page='))
 
-    table = soup.find('table',{'width':'90%'})
+    table = soup.find('table',{'class':'torrents_list'})
     trs = table.findAll('tr',recursive=False)
 
     for tr in trs[1:]:
