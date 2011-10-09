@@ -52,17 +52,17 @@ def parse_tr(tr):
     except:
         obj['promote'] = None
     obj['id'] = int(re_id.search(tds[1].find('a')['href']).group(1))
-    obj['nfiles'] = int(tds[2].text)
-    #obj['ncomments'] = int(tds[3].text)
-    s = tds[3].text
+    obj['ncomments'] = int(tds[2].text)
+    obj['nfiles'] = int(tds[3].text)
+    s = tds[4].text
     s = s[:s.find('TTL')]
     obj['addtime'] = s
-    obj['size'] = tds[4].text
-    obj['ncomplete'] = int(tds[5].text[:-1].replace(',',''))
-    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[6:8]]
-    obj['username'] = tds[8].text
+    obj['size'] = tds[5].text
+    obj['ncomplete'] = int(tds[6].text[:-1].replace(',',''))
+    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[7:9]]
+    obj['username'] = tds[9].text
     try:
-        obj['userid'] = int(re_id.search(tds[8].find('a')['href']).group(1))
+        obj['userid'] = int(re_id.search(tds[9].find('a')['href']).group(1))
     except:
         obj['userid'] = None
     return obj
@@ -89,6 +89,7 @@ def parse_page(page):
             yield obj
         except:
             print 'error parsing', tr
+            raise
 
 if __name__ == '__main__':
     cookies = mechanize.LWPCookieJar(filename='cookie.txt')
