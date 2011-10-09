@@ -59,10 +59,10 @@ def parse_tr(tr):
     obj['addtime'] = s
     obj['size'] = tds[4].text
     obj['ncomplete'] = int(tds[5].text[:-1].replace(',',''))
-    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[6].findAll('a')]
-    obj['username'] = tds[7].text
+    obj['nupload'], obj['ndownload'] = [int(x.text.replace(',','')) for x in tds[6:8]]
+    obj['username'] = tds[8].text
     try:
-        obj['userid'] = int(re_id.search(tds[7].find('a')['href']).group(1))
+        obj['userid'] = int(re_id.search(tds[8].find('a')['href']).group(1))
     except:
         obj['userid'] = None
     return obj
