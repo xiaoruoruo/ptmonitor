@@ -90,6 +90,9 @@ def parse_page(res):
             print 'error parsing', tr
 
 if __name__ == '__main__':
+    import socket
+    socket.setdefaulttimeout(60000) # in Milliseconds
+
     cookies = mechanize.LWPCookieJar(filename='cookie.txt')
     br = mechanize.Browser()
     br.set_handle_robots(False)
