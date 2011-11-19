@@ -61,13 +61,13 @@ def parse_tr(tr):
         obj['sticky'] = False
     obj['title'] = tds[1].find('tr').find('a').text
     obj['id'] = int(re_id.search(tds[1].find('tr').find('a',{'href':True})['href']).group(1))
-    obj['ncomments'] = int(tds[4].text)
-    obj['uptime'] = tds[5].text
-    obj['size'] = tds[6].text
-    obj['nupload'], obj['ndownload'], obj['ncomplete'] = [int(x.text.replace(',','')) for x in tds[7:10]]
-    obj['username'] = tds[10].text
+    obj['ncomments'] = int(tds[5].text)
+    obj['uptime'] = tds[6].text
+    obj['size'] = tds[7].text
+    obj['nupload'], obj['ndownload'], obj['ncomplete'] = [int(x.text.replace(',','')) for x in tds[8:11]]
+    obj['username'] = tds[11].text
     try:
-        obj['userid'] = int(re_id.search(tds[10].find('a')['href']).group(1))
+        obj['userid'] = int(re_id.search(tds[11].find('a')['href']).group(1))
     except:
         obj['userid'] = None
     return obj
