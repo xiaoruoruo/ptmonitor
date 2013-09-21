@@ -3,6 +3,8 @@ import sys
 import re
 import datetime
 import ConfigParser
+import json
+from bson import json_util
 
 import mechanize
 from BeautifulSoup import BeautifulSoup
@@ -17,31 +19,14 @@ def login(br, cookies):
     res = br.open('http://pt.sjtu.edu.cn')
     print br.geturl()
     soup = BeautifulSoup(res.get_data())
-    img_src = None
-    for img in soup.findAll('img'):
-        if img['src'].startswith('getcheckcode'):
-            img_src = img['src']
-    if not img_src:
-        sys.exit(1)
-    print img_src
-    image_response = br.open_novisit(img_src)
-    image = image_response.read()
-    with open('checkcode.png','wb') as f:
-        f.write(image)
-
-    print 'Enter checkcode: ',
-    code = sys.stdin.readline()
-
-    print 'entered',code
 
     br.select_form(nr=0)
     br['username'] = username
     br['password'] = password
-    br['checkcode'] = code
     res2 = br.submit()
-#    print br.geturl()
-#    soup = BeautifulSoup(res2.get_data())
-#    print soup.prettify()
+    #print br.geturl()
+    #soup = BeautifulSoup(res2.get_data())
+    #print soup.prettify()
 
     cookies.save()
     return res2
@@ -72,12 +57,12 @@ def parse_tr(tr):
         obj['userid'] = None
     return obj
 
-def parse_page(res):
+def parse_page(data):
     now = datetime.datetime.utcnow()
     # for debug
-    with open('torrents.html','wb') as f:
-        f.write(res.get_data())
-    soup = BeautifulSoup(res.get_data())
+    with open('debug.html','wb') as f:
+        f.write(data)
+    soup = BeautifulSoup(data)
     table = soup.find('table', {'class':'torrents'})
     trs = table.findAll('tr',recursive=False)
 
@@ -90,6 +75,13 @@ def parse_page(res):
             print 'error parsing', tr
 
 if __name__ == '__main__':
+    if 'test' in sys.argv:
+        print sys.argv
+        with open(sys.argv[2], 'rb') as testfile:
+            for obj in parse_page(testfile.read()):
+                print json.dumps(obj, indent=4, separators=(',', ': '), default=json_util.default)
+        sys.exit(0)
+
     import socket
     socket.setdefaulttimeout(60000) # in Milliseconds
 
@@ -98,14 +90,15 @@ if __name__ == '__main__':
     br.set_handle_robots(False)
     br.set_cookiejar(cookies)
 
-    mongo_conn = Connection()
-    mongo_db = mongo_conn.ptmonitor
-    mongo_col = mongo_db.pt
-
-    cookies.load()
     if 'login' in sys.argv:
         login(br, cookies)
         sys.exit(0)
+    else:
+        cookies.load()
+
+    mongo_conn = Connection()
+    mongo_db = mongo_conn.ptmonitor
+    mongo_col = mongo_db.pt
 
     cnt = 0
     for i in range(6):
@@ -118,7 +111,8 @@ if __name__ == '__main__':
         if not br.geturl().startswith('https://pt.sjtu.edu.cn/torrents.php'):
             print 'wrong torrent page, maybe corupted cookie', br.geturl()
             sys.exit(1)
-        for obj in parse_page(res):
+        print 'parsing', br.geturl()
+        for obj in parse_page(res.get_data()):
             mongo_col.insert(obj)
             cnt += 1
     print "Successful: ", cnt, "objects stored"
