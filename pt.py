@@ -3,12 +3,9 @@ import sys
 import re
 import datetime
 import ConfigParser
-import json
-from bson import json_util
 
 import mechanize
 from BeautifulSoup import BeautifulSoup
-from pymongo import Connection
 
 def login(br, cookies):
     config = ConfigParser.RawConfigParser()
@@ -74,8 +71,38 @@ def parse_page(data):
         except:
             print 'error parsing', tr
 
+class MongoStore:
+    def __init__(self):
+        from pymongo import Connection
+        print 'Using MongoStore'
+        self.mongo_conn = Connection()
+        self.mongo_db = self.mongo_conn.ptmonitor
+        self.mongo_col = self.mongo_db.pt
+
+    def insert(self, obj):
+        self.mongo_col.insert(obj)
+
+    def close(self):
+        self.mongo_conn.close()
+
+class FileStore:
+    def __init__(self, filename):
+        print 'Using FileStore:', filename
+        self.output = open(filename, 'a')
+
+    def insert(self, obj):
+        import json
+        from bson import json_util
+        json.dump(obj, self.output, default=json_util.default)
+        self.output.write('\n')
+
+    def close(self):
+        self.output.close()
+
 if __name__ == '__main__':
     if 'test' in sys.argv:
+        import json
+        from bson import json_util
         print sys.argv
         with open(sys.argv[2], 'rb') as testfile:
             for obj in parse_page(testfile.read()):
@@ -96,9 +123,12 @@ if __name__ == '__main__':
     else:
         cookies.load()
 
-    mongo_conn = Connection()
-    mongo_db = mongo_conn.ptmonitor
-    mongo_col = mongo_db.pt
+    if 'mongo' in sys.argv:
+        store = MongoStore()
+    elif 'file' in sys.argv:
+        store = FileStore(sys.argv[2])
+    else:
+        raise Exception('Need a store type')
 
     cnt = 0
     for i in range(6):
@@ -113,6 +143,6 @@ if __name__ == '__main__':
             sys.exit(1)
         print 'parsing', br.geturl()
         for obj in parse_page(res.get_data()):
-            mongo_col.insert(obj)
+            store.insert(obj)
             cnt += 1
     print "Successful: ", cnt, "objects stored"
